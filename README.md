@@ -25,5 +25,5 @@ A secure login and registration system with role-based access control (RBAC).
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/AishaA8550/-python-login-page.git
+   git clone https://github.com/sumithrakumari8971/Login-page.git
    cd user-auth-system
