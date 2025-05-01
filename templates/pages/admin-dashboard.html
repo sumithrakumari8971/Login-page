@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-header {
+            margin-bottom: 30px;
+        }
+        .user-table {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .table thead th {
+            background-color: #343a40;
+            color: white;
+        }
+        .action-buttons .btn {
+            margin-right: 5px;
+        }
+        .admin-actions {
+            background-color: #f1f1f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <h1><i class="bi bi-speedometer2"></i> Admin Dashboard</h1>
+            <p class="text-muted">Manage system users and permissions</p>
+        </div>
+
+        <div class="admin-actions">
+            <h4><i class="bi bi-gear"></i> Quick Actions</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="input-group mb-3">
+                        <input type="text" id="promote-email" class="form-control" placeholder="User email">
+                        <button class="btn btn-primary" onclick="promoteUser()">
+                            <i class="bi bi-arrow-up-circle"></i> Promote
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group mb-3">
+                        <input type="text" id="reset-email" class="form-control" placeholder="User email">
+                        <input type="password" id="reset-password" class="form-control" placeholder="New password">
+                        <button class="btn btn-warning" onclick="resetPassword()">
+                            <i class="bi bi-key"></i> Reset Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-table">
+            <table class="table table-striped table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table-body">
+                    <!-- Users will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function loadUsers() {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) {
+                    alert("Please login first");
+                    window.location.href = "/login";
+                    return;
+                }
+
+                const res = await fetch("/users", {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch users");
+
+                const data = await res.json();
+                const tbody = document.getElementById("user-table-body");
+                tbody.innerHTML = "";
+
+                data.users.forEach(user => {
+                    const row = document.createElement("tr");
+                    
+                    // Format the date
+                    const joinedDate = new Date(user.created_at);
+                    const formattedDate = joinedDate.toLocaleDateString() + ' ' + joinedDate.toLocaleTimeString();
+                    
+                    // Role badge styling
+                    const roleClass = user.role === 'admin' ? 'badge bg-danger' : 'badge bg-primary';
+                    
+                    row.innerHTML = `
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td><span class="${roleClass}">${user.role}</span></td>
+                        <td>${formattedDate}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editUser(${user.id})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Error loading users:", error);
+                alert("Error loading users. Check console for details.");
+            }
+        }
+
+        async function promoteUser() {
+            const email = document.getElementById("promote-email").value.trim();
+            if (!email) return alert("Please enter an email");
+
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch("/promote", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || "Failed to promote user");
+                
+                alert(data.message);
+                loadUsers(); // Refresh the user list
+            } catch (error) {
+                console.error("Promotion error:", error);
+                alert(error.message);
+            }
+        }
+
+        async function resetPassword() {
+            const email = document.getElementById("reset-email").value.trim();
+            const password = document.getElementById("reset-password").value.trim();
+            
+            if (!email || !password) {
+                return alert("Please enter both email and new password");
+            }
+
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch("/reset-password", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + token
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || "Failed to reset password");
+                
+                alert(data.message);
+            } catch (error) {
+                console.error("Password reset error:", error);
+                alert(error.message);
+            }
+        }
+
+        // Add these placeholder functions for the action buttons
+        function editUser(userId) {
+            alert("Edit user with ID: " + userId);
+            // Implement edit functionality
+        }
+
+        function deleteUser(userId) {
+            if (confirm("Are you sure you want to delete this user?")) {
+                alert("Delete user with ID: " + userId);
+                // Implement delete functionality
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", loadUsers);
+    </script>
+</body>
+</html>
